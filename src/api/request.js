@@ -10,10 +10,12 @@ const request = axios.create({
 request.interceptors.request.use(
     config => {
         const userStore = useUserStore();
-        const { token } = storeToRefs(userStore);
+        const token = userStore.token;
         if (token) {
-            config.headers["Authorization"] = `Bearer ${token}`;
+            config.headers.Authorization = `Bearer ${token}`;
+            // console.log("Added Authorization header:", config.headers.Authorization);
         }
+        // console.log("Request Config:", config);
         return config;
     }
 );
