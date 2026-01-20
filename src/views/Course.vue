@@ -15,15 +15,15 @@
       </el-input>
 
       <el-select v-model="selectedCategory" placeholder="全部分类" clearable class="toolbar-item select">
-        <el-option label="全部分类" value="" />
+        <el-option label="全部分类" :value="null" />
         <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
 
       <el-select v-model="sortBy" placeholder="排序" class="toolbar-item select">
-        <el-option label="按人数" value="popular" />
-        <el-option label="按最新" value="recent" />
-        <el-option label="按热度" value="hot" />
-        <el-option label="按进度" value="progress" />
+        <el-option label="按人数" :value="0" />
+        <el-option label="按最新" :value="1" />
+        <el-option label="按热度" :value="2" />
+        <el-option label="按进度" :value="3" />
       </el-select>
 
       <el-checkbox v-model="showEnrolledOnly" class="toolbar-item">
@@ -36,8 +36,8 @@
     </div>
 
     <!-- 课程列表 -->
-    <el-row v-if="courses.length" :gutter="12">
-      <el-col v-for="course in courses" :key="course.id" :xs="24" :sm="12" :md="8">
+    <el-row v-if="filteredCourses.length" :gutter="12">
+      <el-col v-for="course in filteredCourses" :key="course.id" :xs="24" :sm="12" :md="8">
         <el-card shadow="hover" class="course-card">
           <el-image :src="course.cover" :alt="course.title" fit="cover" class="cover" />
 
@@ -51,8 +51,8 @@
             <div class="meta">
               <span class="difficulty" :style="{ color: difficultyMap[course.difficulty]?.color }">
                 {{ difficultyMap[course.difficulty]?.label || "未知" }}
-                {{ getDifficultyStars(course.difficulty) }}
               </span>
+              <el-rate v-model="course.difficulty" :max="5" disabled allow-half class="difficulty-rate" />
               <span class="separator">|</span>
               <span class="category">{{ course.category }}</span>
             </div>
@@ -94,14 +94,9 @@
     </el-empty>
 
     <!-- 分页 -->
-    <div class="pagination" v-if="courses.length">
-      <el-pagination 
-        background 
-        layout="prev, pager, next, ->, sizes" 
-        :current-page="page" 
-        :page-size="pageSize"
-        :total="total" 
-        @current-change="p => { page = p; searchCourses(); }"
+    <div class="pagination" v-if="filteredCourses.length">
+      <el-pagination background layout="prev, pager, next, ->, sizes" :current-page="page" :page-size="pageSize"
+        :total="total" @current-change="p => { page = p; searchCourses(); }"
         @size-change="size => { pageSize = size; page = 1; searchCourses(); }" />
     </div>
   </div>
@@ -109,24 +104,44 @@
 
 
 <script setup>
+
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, User } from "@element-plus/icons-vue";
-import request from "../api/request";
-import { ElMessage } from "element-plus";
-import { GetCategories } from "../api/course";
+import { ElMessage, ElRate } from "element-plus";
+import { GetCategories, GetCourses } from "../api/course";
 const router = useRouter();
 
 // 查询与筛选
 const searchQuery = ref("");
-const selectedCategory = ref("");
-const sortBy = ref("popular");
+const selectedCategory = ref(null);
+const sortBy = ref(0);
 const showEnrolledOnly = ref(false);
-
 // 分页
 const page = ref(1);
 const pageSize = ref(9);
 const total = ref(0);
+
+const courses = ref([]);
+// 处理中状态：使用对象映射以便响应式
+const enrolling = ref({});
+
+// 根据showEnrolledOnly过滤课程
+const filteredCourses = computed(() => {
+  if (!showEnrolledOnly.value) {
+    return courses.value;
+  }
+  return courses.value.filter(course => course.enrolled === true);
+});
+
+// 搜索加载状态
+const loading = ref(false);
+// 分类列表
+const categories = ref([{
+  id: 0,
+  name: "默认分类"
+}]);
+
 
 // 难度等级映射
 const difficultyMap = {
@@ -137,24 +152,6 @@ const difficultyMap = {
   5: { label: "专家", color: "#ad3c3c" },
 };
 
-// 获取难度星级显示（1-5个星）
-const getDifficultyStars = (difficulty) => {
-  return "★".repeat(difficulty) + "☆".repeat(5 - difficulty);
-};
-
-const courses = ref([]);
-
-// 处理中状态：使用对象映射以便响应式
-const enrolling = ref({});
-
-// 搜索加载状态
-const loading = ref(false);
-
-// 分类列表
-const categories = ref([{
-  id: 0,
-  name: "默认分类"
-}]);
 // 组件挂载时获取分类列表和初始课程列表
 onMounted(async () => {
   try {
@@ -163,25 +160,32 @@ onMounted(async () => {
   } catch (e) {
     ElMessage.error("获取分类列表失败");
   }
-
   // 初始搜索
   searchCourses();
 });
+
+
+// 重置搜索选项
+const resetFilters = () => {
+  searchQuery.value = "";
+  selectedCategory.value = null;
+  sortBy.value = 0;
+  showEnrolledOnly.value = false;
+  searchCourses();
+};
+
 
 // TODO: 这里可以根据后端接口调整请求参数
 // 搜索课程
 const searchCourses = async () => {
   loading.value = true;
   try {
-    const res = await request.get("/", {
-      params: {
-        keyword: searchQuery.value,
-        category: selectedCategory.value,
-        sortBy: sortBy.value,
-        enrolledOnly: showEnrolledOnly.value,
-        page: page.value,
-        pageSize: pageSize.value
-      }
+    const res = await GetCourses({
+      page: page.value,
+      pageSize: pageSize.value,
+      keyword: searchQuery.value,
+      categoryId: selectedCategory.value,
+      sortBy: sortBy.value,
     });
 
     courses.value = res.data?.records || [];
@@ -194,25 +198,13 @@ const searchCourses = async () => {
   }
 };
 
-// 充值搜索选项
-const resetFilters = () => {
-  searchQuery.value = "";
-  selectedCategory.value = "";
-  sortBy.value = "popular";
-  showEnrolledOnly.value = false;
-  searchCourses();
-};
-
-const OnPageSizeChange = (size) => {
-  pageSize.value = size;
-  page.value = 1;
-}
-
+// TODO: 路由名称根据实际情况调整
 const openCourse = (course) => {
   router?.push({ name: "CourseDetail", params: { id: course.id } }).catch(() => {
   });
 };
 
+// TODO: 这里可以根据后端接口调整请求参数
 const enroll = async (course) => {
   if (enrolling.value[course.id]) return;
   enrolling.value[course.id] = true;
@@ -225,9 +217,9 @@ const enroll = async (course) => {
   }
 };
 
-// 筛选项变化自动搜索
+// 筛选项变化自动搜索（showEnrolledOnly不触发搜索，只做前端过滤）
 watch(
-  [selectedCategory, sortBy, showEnrolledOnly],
+  [selectedCategory, sortBy],
   searchCourses
 );
 
@@ -300,6 +292,10 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.difficulty-rate {
+  font-size: 14px;
 }
 
 .difficulty {
