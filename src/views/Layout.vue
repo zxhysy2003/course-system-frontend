@@ -67,11 +67,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue"
+import { ref } from "vue"
 import { useUserStore } from "../store/user"
 import { useRouter } from "vue-router"
 import { Document, Star, DataAnalysis, MagicStick, User, UserFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+
 
 const userStore = useUserStore();
 const router = useRouter();

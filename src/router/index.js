@@ -4,15 +4,16 @@ import {
 } from "vue-router";
 import { useUserStore } from "../store/user";
 
-import Login from "~/views/Login.vue";
-import Register from "~/views/Register.vue";
-import Layout from "~/views/Layout.vue";
-import Profile from "~/views/Profile.vue";
-import Course from "~/views/Course.vue";
-import Recommend from "~/views/Recommend.vue";
-import Dashboard from "~/views/Dashboard.vue";
-import KnowledgeGraph from "~/views/KnowledgeGraph.vue";
-import NotFound from "~/views/404.vue";
+import Login from "@/views/Login.vue";
+import Register from "@/views/Register.vue";
+import Layout from "@/views/Layout.vue";
+import Profile from "@/views/Profile.vue";
+import Course from "@/views/Course.vue";
+import Recommend from "@/views/Recommend.vue";
+import Dashboard from "@/views/Dashboard.vue";
+import KnowledgeGraph from "@/views/KnowledgeGraph.vue";
+import NotFound from "@/views/404.vue";
+import CourseDetail from "@/views/CourseDetail.vue";
 
 
 const routes = [
@@ -38,6 +39,7 @@ const routes = [
         children: [
             { path: "", redirect: "/course" },
             { path: "course", component: Course },
+            { path: "courseDetail/:id", name: "CourseDetail", component: CourseDetail },
             { path: "recommend", component: Recommend },
             { path: "dashboard", component: Dashboard },
             { path: "graph", component: KnowledgeGraph },

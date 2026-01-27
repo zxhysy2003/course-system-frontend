@@ -58,7 +58,7 @@
             </div>
 
             <div class="tags">
-              <el-tag v-for="tag in course.tags" :key="tag" size="small" effect="light">
+              <el-tag v-for="tag in course.tagList" :key="tag" size="small" effect="light">
                 #{{ tag }}
               </el-tag>
             </div>
@@ -95,7 +95,13 @@
 
     <!-- 分页 -->
     <div class="pagination" v-if="filteredCourses.length">
-      <el-pagination background layout="prev, pager, next, ->, sizes" :current-page="page" :page-size="pageSize"
+      <el-pagination 
+        background 
+        layout="prev, pager, next, ->, sizes" 
+        :current-page="page" 
+        :page-size="pageSize"
+        :page-sizes="[6, 9, 12, 18]"
+        :size="default"
         :total="total" @current-change="p => { page = p; searchCourses(); }"
         @size-change="size => { pageSize = size; page = 1; searchCourses(); }" />
     </div>
@@ -109,7 +115,8 @@ import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, User } from "@element-plus/icons-vue";
 import { ElMessage, ElRate } from "element-plus";
-import { GetCategories, GetCourses } from "../api/course";
+import { GetCategories, GetCourses, UserAttendCourse } from "../api/course";
+
 const router = useRouter();
 
 // 查询与筛选
@@ -175,7 +182,6 @@ const resetFilters = () => {
 };
 
 
-// TODO: 这里可以根据后端接口调整请求参数
 // 搜索课程
 const searchCourses = async () => {
   loading.value = true;
@@ -188,8 +194,10 @@ const searchCourses = async () => {
       sortBy: sortBy.value,
     });
 
-    courses.value = res.data?.records || [];
-    total.value = res.data?.total || 0;
+    console.log(res);
+
+    courses.value = res.data.data?.records || [];
+    total.value = res.data.data?.total || 0;
     ElMessage.success("搜索成功");
   } catch (e) {
     ElMessage.error("搜索失败");
@@ -204,12 +212,18 @@ const openCourse = (course) => {
   });
 };
 
-// TODO: 这里可以根据后端接口调整请求参数
+// 加入课程
 const enroll = async (course) => {
   if (enrolling.value[course.id]) return;
   enrolling.value[course.id] = true;
   try {
-    await new Promise((res) => setTimeout(res, 600)); // 模拟网络延迟
+    console.log("加入课程：", course.id);
+    const res = await UserAttendCourse(course.id);
+    if (res.data.code !== 200) {
+      ElMessage.error(res.data.msg || "加入课程失败");
+      return;
+    }
+    ElMessage.success(`已成功加入课程《${course.title}》`);
     course.enrolled = true;
     course.progress = 0;
   } finally {

@@ -7,3 +7,7 @@ export function GetCategories() {
 export function GetCourses(params) {
     return request.post("/course/list", params);
 }
+
+export function UserAttendCourse(courseId) {
+    return request.get(`/course/attend/${courseId}`);
+}
