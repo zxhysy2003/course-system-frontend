@@ -11,3 +11,7 @@ export function GetCourses(params) {
 export function UserAttendCourse(courseId) {
     return request.get(`/course/attend/${courseId}`);
 }
+
+export function GetCourseVideo(courseId) {
+    return request.get(`/course/video/${courseId}`);
+}

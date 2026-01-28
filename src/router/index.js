@@ -39,7 +39,7 @@ const routes = [
         children: [
             { path: "", redirect: "/course" },
             { path: "course", component: Course },
-            { path: "courseDetail/:id", name: "CourseDetail", component: CourseDetail },
+            { path: "courseDetail/:id/:title", name: "CourseDetail", component: CourseDetail },
             { path: "recommend", component: Recommend },
             { path: "dashboard", component: Dashboard },
             { path: "graph", component: KnowledgeGraph },

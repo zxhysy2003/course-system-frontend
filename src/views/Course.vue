@@ -206,10 +206,12 @@ const searchCourses = async () => {
   }
 };
 
-// TODO: 路由名称根据实际情况调整
+// 路由名称根据实际情况调整
 const openCourse = (course) => {
-  router?.push({ name: "CourseDetail", params: { id: course.id } }).catch(() => {
-  });
+  router?.push({ 
+    name: "CourseDetail", 
+    params: { id: course.id , title: course.title }
+   }).catch(() => {});
 };
 
 // 加入课程
