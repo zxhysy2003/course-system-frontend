@@ -114,7 +114,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, User } from "@element-plus/icons-vue";
-import { ElMessage, ElRate } from "element-plus";
+import { logger } from "../utils/logger";
 import { GetCategories, GetCourses, UserAttendCourse } from "../api/course";
 
 const router = useRouter();
@@ -165,7 +165,7 @@ onMounted(async () => {
     const res = await GetCategories();
     categories.value = res.data?.data || [];
   } catch (e) {
-    ElMessage.error("获取分类列表失败");
+    logger.error("获取分类列表失败", e);
   }
   // 初始搜索
   searchCourses();
@@ -194,13 +194,13 @@ const searchCourses = async () => {
       sortBy: sortBy.value,
     });
 
-    console.log(res);
+    logger.debug("搜索课程结果", res);
 
     courses.value = res.data.data?.records || [];
     total.value = res.data.data?.total || 0;
-    ElMessage.success("搜索成功");
+    logger.success("搜索成功");
   } catch (e) {
-    ElMessage.error("搜索失败");
+    logger.error("搜索失败", e);
   } finally {
     loading.value = false;
   }
@@ -208,10 +208,10 @@ const searchCourses = async () => {
 
 // 路由名称根据实际情况调整
 const openCourse = (course) => {
-  router?.push({ 
+  router.push({ 
     name: "CourseDetail", 
-    params: { id: course.id , title: course.title }
-   }).catch(() => {});
+    params: { id: course.id }
+  });
 };
 
 // 加入课程
@@ -219,13 +219,13 @@ const enroll = async (course) => {
   if (enrolling.value[course.id]) return;
   enrolling.value[course.id] = true;
   try {
-    console.log("加入课程：", course.id);
+    logger.debug("加入课程", course.id);
     const res = await UserAttendCourse(course.id);
     if (res.data.code !== 200) {
-      ElMessage.error(res.data.msg || "加入课程失败");
+      logger.error(res.data.msg || "加入课程失败", res.data);
       return;
     }
-    ElMessage.success(`已成功加入课程《${course.title}》`);
+    logger.success(`已成功加入课程《${course.title}》`);
     course.enrolled = true;
     course.progress = 0;
   } finally {

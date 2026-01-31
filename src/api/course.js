@@ -15,3 +15,15 @@ export function UserAttendCourse(courseId) {
 export function GetCourseVideo(courseId) {
     return request.get(`/course/video/${courseId}`);
 }
+
+export function GetUserCourseRelation(courseId) {
+    return request.get(`/course/relation/${courseId}`);
+}
+
+export function UpdateCourseVideoProgressSeconds(data) {
+    return request.post("/course/relation/updateProgressSeconds", null, { params: data });
+}
+
+export function GetCourseById(courseId) {
+    return request.get(`/course/${courseId}`);
+}

@@ -48,7 +48,7 @@ import { reactive, ref } from "vue"
 import { useRouter } from "vue-router"
 import { login } from "../api/user"
 import { useUserStore } from "../store/user"
-import { ElMessage } from "element-plus"
+import { logger } from "../utils/logger"
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -76,15 +76,15 @@ const doLogin = async () => {
         
         const res = await login(form);
         if (res.data.code !== 200) {
-            return ElMessage.error(res.data.msg);
+            return logger.error(res.data.msg, res.data);
         }
         const token = res.data.data;
         
         userStore.setToken(token);
-        ElMessage.success("登录成功");
+        logger.success("登录成功");
         router.push("/");
     } catch (error) {
-        ElMessage.error("登录失败，请检查用户名和密码");
+        logger.error("登录失败，请检查用户名和密码", error);
     }
 };
 </script>

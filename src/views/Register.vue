@@ -57,7 +57,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { logger } from '../utils/logger'
 import { Register } from '../api/user'
 
 const router = useRouter()
@@ -101,15 +101,15 @@ const handleSubmit = async () => {
         // 调用注册 API
         const response = await Register(form)
         if (response.data.code !== 200) {
-            return ElMessage.error(response.data.msg)
+            return logger.error(response.data.msg, response.data)
         }
         
-        ElMessage.success('注册成功，跳转到登录页面')
+        logger.success('注册成功，跳转到登录页面')
         setTimeout(() => {
             router.push('/login')
         }, 1500)
     } catch (error) {
-        ElMessage.error('注册失败，请检查表单信息')
+        logger.error('注册失败，请检查表单信息', error)
     }
 }
 </script>

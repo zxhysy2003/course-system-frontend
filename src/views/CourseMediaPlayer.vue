@@ -10,17 +10,36 @@
           :src="props.videoUrl"
           controls
           @error="handleVideoError"
+          @loadedmetadata="handleLoadedMetadata"
           @play="handleVideoPlay"
           @pause="handleVideoPause"
           @timeupdate="handleTimeUpdate"
-          @ended="handleVideoEnded"
         />
         <div v-else class="loading">加载中...</div>
       </div>
 
       <!-- 标题区 -->
       <div class="meta">
-        <h2 class="title">{{ props.title }}</h2>
+        <div class="title-bar">
+          <h2 class="title">{{ courseInfo.title }}</h2>
+          <!-- 用户未注册课程：显示加入课程按钮 -->
+          <el-button 
+            v-if="!hasEnrolled"
+            type="primary"
+            @click="handleEnrollCourse"
+          >
+            加入课程
+          </el-button>
+          <!-- 用户已注册课程：显示收藏按钮 -->
+          <el-button 
+            v-else
+            :type="userCourseRelation.isFavorite ? 'warning' : 'default'"
+            :icon="Star"
+            circle
+            @click="handleFavorite"
+          />
+        </div>
+        <div v-if="courseInfo.description" class="description">{{ courseInfo.description }}</div>
         <div class="watch-time">观看时长: {{ formatTime(totalWatchTime) }}</div>
       </div>
     </el-card>
@@ -28,21 +47,21 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, watch, ref } from 'vue'
+import { onBeforeUnmount, watch, ref, reactive, onMounted } from 'vue'
 import { useUserStore } from "../store/user";
 import { setAuthTokenToCookie, clearAuthTokenCookie } from "../utils/authCookie";
-import { ElMessage } from 'element-plus';
+import { logger } from '../utils/logger';
+import { Star } from '@element-plus/icons-vue';
 import { RecordLearningBehavior } from '../api/learningBehavior';
+import { GetUserCourseRelation, UpdateCourseVideoProgressSeconds, GetCourseById, UserAttendCourse } from '../api/course';
 
 const store = useUserStore();
 const videoRef = ref(null);
 
+const courseInfo = reactive({});
+
 const props = defineProps({
   videoUrl: {
-    type: String,
-    required: true
-  },
-  title: {
     type: String,
     required: true
   },
@@ -55,10 +74,30 @@ const props = defineProps({
 // 记录是否已发送过播放行为
 const hasRecordedView = ref(false);
 
+// 用户是否已注册该课程
+const hasEnrolled = ref(true);
+
+const userCourseRelation = reactive({
+  // 与收藏相关
+  isFavorite: false,
+  progressSeconds: 0, // 断点续播的秒数
+
+});
+
+
 // 观看时间相关
 const totalWatchTime = ref(0); // 总观看时长（秒）
 const lastRecordTime = ref(0); // 上次记录的时间戳
 const isPlaying = ref(false); // 当前是否在播放
+
+// 监听页面可见性变化，暂停视频播放
+const handleVisibilityChange = () => {
+  if (document.hidden && isPlaying.value) {
+    const video = videoRef.value;
+    if (video) video.pause();
+    handleVideoPause();
+  }
+};
 
 // 当视频URL变化时设置认证Cookie
 watch(() => props.videoUrl, (newUrl) => {
@@ -72,6 +111,11 @@ watch(() => props.videoUrl, (newUrl) => {
       clearAuthTokenCookie();
     }
   }
+  // 暂停当前视频播放
+  const video = videoRef.value;
+  if (video) {
+    video.pause();
+  }
   // 重置标志位（切换视频时）
   hasRecordedView.value = false;
   totalWatchTime.value = 0;
@@ -81,63 +125,112 @@ watch(() => props.videoUrl, (newUrl) => {
 
 // 视频加载错误处理
 const handleVideoError = (e) => {
-  console.error('视频加载失败:', e);
-  ElMessage.error('视频加载失败，请检查网络或权限');
+  logger.error('视频加载失败，请检查网络或权限', e);
 };
 
-// 视频播放事件处理（只记录一次）
-const handleVideoPlay = async () => {
+// 视频播放事件处理
+const handleVideoPlay = () => {
   isPlaying.value = true;
-  lastRecordTime.value = Date.now();
-  
-  if (hasRecordedView.value) return; // 已记录过，只更新播放状态
-  
-  hasRecordedView.value = true;
-  
-  const res = await RecordLearningBehavior({
-    courseId: Number(props.courseId),
-    behaviorType: 'VIEW',
-  });
-  if (res.data.code === 200) {
-    console.log('已记录学习行为 VIEW for courseId:', props.courseId);
-  } else {
-    console.error('记录学习行为失败:', res.data.msg);
-    hasRecordedView.value = false;
-  }
+  const video = videoRef.value;
+  if (video) {
+    lastRecordTime.value = video.currentTime;
+  } 
 };
 
 // 视频暂停事件处理
 const handleVideoPause = () => {
   isPlaying.value = false;
+  const video = videoRef.value;
+  if (video) {
+    lastRecordTime.value = video.currentTime;
+  }
 };
 
 // 时间更新事件（用于计算观看时长）
 const handleTimeUpdate = () => {
-  if (isPlaying.value) {
-    const now = Date.now();
-    const deltaTime = (now - lastRecordTime.value) / 1000; // 转换为秒
+  const video = videoRef.value;
+  if (!video || !isPlaying.value) return;
+  const currentTime = video.currentTime;
+  const delta = currentTime - lastRecordTime.value;
+  
+  // 只累加合理的时间差（防止拖拽等导致的异常值）
+  if (delta > 0 && delta < 3) {
+    totalWatchTime.value += delta;
+  }
+
+  if (!hasRecordedView.value && totalWatchTime.value >= 10) {
+    hasRecordedView.value = true;
+    sendViewRecord();
+  }
     
-    // 只累加合理的时间差（防止拖拽等导致的异常值）
-    if (deltaTime > 0 && deltaTime < 10) {
-      totalWatchTime.value += deltaTime;
-    }
-    
-    lastRecordTime.value = now;
+  lastRecordTime.value = currentTime;
+  
+};
+
+// 视频元数据加载后设置断点续播时间
+const handleLoadedMetadata = () => {
+  const video = videoRef.value;
+  if (video && userCourseRelation.progressSeconds > 0) {
+    video.currentTime = userCourseRelation.progressSeconds;
   }
 };
 
-// 视频播放结束事件处理
-const handleVideoEnded = async () => {
-  isPlaying.value = false;
-  
-  const res = await RecordLearningBehavior({
-    courseId: Number(props.courseId),
-    behaviorType: 'FINISH',
-  });
-  if (res.data.code === 200) {
-    console.log('已记录学习行为 FINISH for courseId:', props.courseId);
-  } else {
-    console.error('记录学习行为失败:', res.data.msg);
+// 发送首次观看记录
+const sendViewRecord = async () => {
+  try {
+    const res = await RecordLearningBehavior({
+      courseId: Number(props.courseId),
+      behaviorType: 'VIEW',
+    });
+    if (res.data.code !== 200) {
+      hasRecordedView.value = false; // 重置标志位，允许重试
+      logger.error('记录学习行为失败', res.data.msg);
+    }
+  } catch (error) {
+    logger.error('记录学习行为出错', error);
+    hasRecordedView.value = false; // 重置标志位，允许重试
+  }
+};
+
+// 收藏按钮点击事件处理
+const handleFavorite = async () => {
+  try {
+    // 先确定目标状态，但不更新 UI
+    const targetFavoriteState = !userCourseRelation.isFavorite;
+    const behaviorType = targetFavoriteState ? 'FAVORITE' : 'UNFAVORITE';
+    
+    const res = await RecordLearningBehavior({
+      courseId: Number(props.courseId),
+      behaviorType: behaviorType,
+    });
+    
+    if (res.data.code !== 200) {
+      logger.error('操作失败，请重试', res.data.msg);
+    } else {
+      // 请求成功后才更新 UI
+      userCourseRelation.isFavorite = targetFavoriteState;
+      const message = userCourseRelation.isFavorite ? '已收藏' : '已取消收藏';
+      logger.success(message);
+      logger.debug('收藏操作成功', behaviorType);
+    }
+  } catch (error) {
+    logger.error('操作失败，请重试', error);
+  }
+};
+
+// 加入课程按钮点击事件处理
+const handleEnrollCourse = async () => {
+  // 调用注册课程 API，成功后设置 hasEnrolled.value = true
+  try{
+    const res = await UserAttendCourse(props.courseId);
+    if (res.data.code === 200) {
+      hasEnrolled.value = true;
+      logger.success('成功加入课程');
+    } else {
+      logger.error('加入课程失败', res.data.msg);
+    }
+  } catch (e) {
+    logger.error('加入课程异常', e);
   }
 };
 
@@ -149,8 +242,47 @@ const formatTime = (seconds) => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+// TODO: 页面加载时可以发送一些初始化请求，比如获取用户与课程的关系等(收藏相关，进度条断点记录和恢复等)
+onMounted( async () => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  try {
+    const res = await GetUserCourseRelation(props.courseId);
+    if (res.data.code === 200 && res.data.data) {
+      // 用户已注册该课程，有课程关系信息
+      hasEnrolled.value = true;
+      userCourseRelation.isFavorite = res.data.data.isFavorite;
+      userCourseRelation.progressSeconds = res.data.data.progressSeconds || 0;
+    } else if (res.data.code === 200 && !res.data.data) {
+      // 用户未注册该课程
+      hasEnrolled.value = false;
+    } else {
+      logger.error('获取用户课程关系失败', res.data.msg);
+      hasEnrolled.value = false;
+    }
+  } catch (e) {
+    logger.error('获取用户课程关系出错', e);
+    hasEnrolled.value = false;
+  }
+  // 设置该课程的详细信息
+  try {
+    const res = await GetCourseById(props.courseId);
+    if (res.data.code === 200) {
+      Object.assign(courseInfo, res.data.data);
+    } else {
+      logger.error('获取课程信息失败', res.data.msg);
+    }
+  } catch (e) {
+    logger.error('获取课程信息出错', e);
+  }
+});
+
 // 离开页面前发送观看时长记录
 onBeforeUnmount(async () => {
+  const video = videoRef.value;
+  if (video) {
+    video.pause();
+  }
+  // 发送观看时长记录
   if (hasRecordedView.value && totalWatchTime.value > 0) {
     try {
       // 发送观看时长记录（不一定是完成）
@@ -159,12 +291,27 @@ onBeforeUnmount(async () => {
         behaviorType: 'STUDY',
         duration: Math.round(totalWatchTime.value)
       });
-      console.log('离开前记录观看时长:', Math.round(totalWatchTime.value), '秒');
+      logger.debug('离开前记录观看时长', Math.round(totalWatchTime.value));
     } catch (e) {
-      console.error('记录观看时长失败:', e);
+      logger.error('记录观看时长失败', e);
     }
   }
+  // 发送断点续播时间
+  if (video) {
+    const currentTime = Math.floor(video.currentTime);
+    try {
+      await UpdateCourseVideoProgressSeconds({
+        courseId: Number(props.courseId),
+        progressSeconds: currentTime
+      });
+      logger.debug('更新断点续播时间', currentTime);
+    } catch (e) {
+      logger.error('更新断点续播时间失败', e);
+    }
+  }
+  // 清除认证Cookie
   clearAuthTokenCookie();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
 </script>
@@ -204,10 +351,27 @@ onBeforeUnmount(async () => {
   margin-top: 14px;
 }
 
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .title {
   font-size: 20px;
   font-weight: 600;
   line-height: 1.4;
+  margin: 0;
+  flex: 1;
+}
+
+.description {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+  margin-top: 8px;
+  padding: 0;
 }
 
 .watch-time {
