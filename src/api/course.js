@@ -27,3 +27,15 @@ export function UpdateCourseVideoProgressSeconds(data) {
 export function GetCourseById(courseId) {
     return request.get(`/course/${courseId}`);
 }
+
+export function GetCourseByKp(kpId) {
+    return request.get("/course/by-kp", {
+        params: { kpId }
+    });
+}
+
+export function GetKnowledgePointsByCourse(courseId) {
+    return request.get("/course/by-c", {
+        params: { courseId }
+    });
+}

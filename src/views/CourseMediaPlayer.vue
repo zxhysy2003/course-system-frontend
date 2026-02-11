@@ -30,16 +30,34 @@
           >
             加入课程
           </el-button>
-          <!-- 用户已注册课程：显示收藏按钮 -->
-          <el-button 
-            v-else
-            :type="userCourseRelation.isFavorite ? 'warning' : 'default'"
-            :icon="Star"
-            circle
-            @click="handleFavorite"
-          />
+          <!-- 用户已注册课程：显示收藏按钮和查看图谱按钮 -->
+          <div v-else class="actions-col">
+            <el-button
+              :type="userCourseRelation.isFavorite ? 'warning' : 'default'"
+              :icon="Star"
+              circle
+              @click="handleFavorite"
+            />
+            <el-button type="primary" plain size="small" @click="goToKnowledgeGraph">
+              查看图谱
+            </el-button>
+          </div>
         </div>
         <div v-if="courseInfo.description" class="description">{{ courseInfo.description }}</div>
+        <div class="kp-section">
+          <div class="kp-title">课程知识点</div>
+          <div v-if="knowledgePoints.length" class="kp-list">
+            <el-tag
+              v-for="kp in knowledgePoints"
+              :key="kp.id"
+              effect="light"
+              :style="getDifficultyStyle(kp.difficulty)"
+            >
+              {{ kp.name }} · 难度 {{ kp.difficulty }}
+            </el-tag>
+          </div>
+          <div v-else class="kp-empty">暂无知识点数据</div>
+        </div>
         <div class="watch-time">观看时长: {{ formatTime(totalWatchTime) }}</div>
       </div>
     </el-card>
@@ -48,14 +66,22 @@
 
 <script setup>
 import { onBeforeUnmount, watch, ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router';
 import { useUserStore } from "../store/user";
 import { setAuthTokenToCookie, clearAuthTokenCookie } from "../utils/authCookie";
 import { logger } from '../utils/logger';
 import { Star } from '@element-plus/icons-vue';
 import { RecordLearningBehavior } from '../api/learningBehavior';
-import { GetUserCourseRelation, UpdateCourseVideoProgressSeconds, GetCourseById, UserAttendCourse } from '../api/course';
+import {
+  GetUserCourseRelation,
+  UpdateCourseVideoProgressSeconds,
+  GetCourseById,
+  UserAttendCourse,
+  GetKnowledgePointsByCourse
+} from '../api/course';
 
 const store = useUserStore();
+const router = useRouter();
 const videoRef = ref(null);
 
 const courseInfo = reactive({});
@@ -83,6 +109,8 @@ const userCourseRelation = reactive({
   progressSeconds: 0, // 断点续播的秒数
 
 });
+
+const knowledgePoints = ref([]);
 
 
 // 观看时间相关
@@ -234,12 +262,30 @@ const handleEnrollCourse = async () => {
   }
 };
 
+const goToKnowledgeGraph = () => {
+  router.push({
+    path: '/graph',
+    query: { courseId: String(props.courseId) }
+  });
+};
+
 // 格式化时间显示（秒 -> HH:MM:SS）
 const formatTime = (seconds) => {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
+const difficultyStyleMap = {
+  1: { backgroundColor: '#f1f8e9', borderColor: '#c5e1a5', color: '#33691e' },
+  2: { backgroundColor: '#e3f2fd', borderColor: '#90caf9', color: '#0d47a1' },
+  3: { backgroundColor: '#fff3e0', borderColor: '#ffcc80', color: '#e65100' },
+  4: { backgroundColor: '#ffebee', borderColor: '#ef9a9a', color: '#b71c1c' },
+};
+
+const getDifficultyStyle = (difficulty) => {
+  return difficultyStyleMap[difficulty] || difficultyStyleMap[1];
 };
 
 // TODO: 页面加载时可以发送一些初始化请求，比如获取用户与课程的关系等(收藏相关，进度条断点记录和恢复等)
@@ -273,6 +319,19 @@ onMounted( async () => {
     }
   } catch (e) {
     logger.error('获取课程信息出错', e);
+  }
+  // 获取课程知识点并按难度渲染
+  try {
+    const res = await GetKnowledgePointsByCourse(props.courseId);
+    if (res.data.code === 200) {
+      knowledgePoints.value = Array.isArray(res.data.data) ? res.data.data : [];
+    } else {
+      knowledgePoints.value = [];
+      logger.error('获取课程知识点失败', res.data.msg);
+    }
+  } catch (e) {
+    knowledgePoints.value = [];
+    logger.error('获取课程知识点出错', e);
   }
 });
 
@@ -353,9 +412,16 @@ onBeforeUnmount(async () => {
 
 .title-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.actions-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .title {
@@ -378,5 +444,26 @@ onBeforeUnmount(async () => {
   font-size: 14px;
   color: #666;
   margin-top: 8px;
+}
+
+.kp-section {
+  margin-top: 10px;
+}
+
+.kp-title {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.kp-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kp-empty {
+  font-size: 13px;
+  color: #999;
 }
 </style>
