@@ -10,6 +10,7 @@
                     :model="form" 
                     label-width="auto"
                     style="max-width: 500px"
+                    @submit.prevent="doLogin"
                 >
                     <el-form-item prop="username" label="用户名">
                         <el-input 
@@ -29,7 +30,7 @@
                     </el-form-item>
                     
                     <el-form-item>
-                        <el-button type="primary" @click="doLogin" style="width: 100%">
+                        <el-button type="primary" native-type="submit" :loading="submitting" style="width: 100%">
                             登录
                         </el-button>
                     </el-form-item>
@@ -53,6 +54,7 @@ import { logger } from "../utils/logger"
 const router = useRouter();
 const userStore = useUserStore();
 const formRef = ref(null);
+const submitting = ref(false);
 
 const form = reactive({
     username: "",
@@ -70,8 +72,10 @@ const rules = {
 
 const doLogin = async () => {
     if (!formRef.value) return;
+    if (submitting.value) return;
     
     try {
+        submitting.value = true;
         await formRef.value.validate();
         
         const res = await login(form);
@@ -85,6 +89,8 @@ const doLogin = async () => {
         router.push("/");
     } catch (error) {
         logger.error("登录失败，请检查用户名和密码", error);
+    } finally {
+        submitting.value = false;
     }
 };
 </script>

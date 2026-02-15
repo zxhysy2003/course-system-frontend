@@ -5,3 +5,9 @@ export function GetKnowledgeGraph(courseId) {
     params: { courseId },
   });
 }
+
+export function GetLearningProgress(days) {
+  return request.get("/analysis/progress", {
+    params: { days },
+  });
+}

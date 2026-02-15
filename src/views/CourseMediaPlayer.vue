@@ -22,23 +22,24 @@
       <div class="meta">
         <div class="title-bar">
           <h2 class="title">{{ courseInfo.title }}</h2>
-          <!-- 用户未注册课程：显示加入课程按钮 -->
-          <el-button 
-            v-if="!hasEnrolled"
-            type="primary"
-            @click="handleEnrollCourse"
-          >
-            加入课程
-          </el-button>
-          <!-- 用户已注册课程：显示收藏按钮和查看图谱按钮 -->
-          <div v-else class="actions-col">
+          <div class="actions-col">
             <el-button
+              v-if="!hasEnrolled"
+              class="action-btn"
+              type="primary"
+              @click="handleEnrollCourse"
+            >
+              加入课程
+            </el-button>
+            <el-button
+              v-else
+              class="action-btn"
               :type="userCourseRelation.isFavorite ? 'warning' : 'default'"
               :icon="Star"
               circle
               @click="handleFavorite"
             />
-            <el-button type="primary" plain size="small" @click="goToKnowledgeGraph">
+            <el-button class="action-btn graph-btn" type="primary" plain size="small" @click="goToKnowledgeGraph">
               查看图谱
             </el-button>
           </div>
@@ -407,36 +408,56 @@ onBeforeUnmount(async () => {
 }
 
 .meta {
-  margin-top: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #eceff5;
+  background: linear-gradient(180deg, #fbfcfe 0%, #f6f8fc 100%);
 }
 
 .title-bar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
 }
 
 .actions-col {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
+  min-width: 110px;
+}
+
+.action-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(31, 42, 68, 0.12);
+}
+
+.graph-btn {
+  min-width: 92px;
 }
 
 .title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.4;
   margin: 0;
   flex: 1;
+  color: #1f2a44;
+  letter-spacing: 0.2px;
 }
 
 .description {
-  font-size: 14px;
-  color: #555;
+  font-size: 15px;
+  color: #4a5670;
   line-height: 1.6;
-  margin-top: 8px;
+  margin-top: 10px;
   padding: 0;
 }
 
@@ -465,5 +486,25 @@ onBeforeUnmount(async () => {
 .kp-empty {
   font-size: 13px;
   color: #999;
+}
+
+@media (max-width: 768px) {
+  .meta {
+    padding: 12px;
+  }
+
+  .title-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .actions-col {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
 }
 </style>
