@@ -98,9 +98,14 @@
                   <el-step
                     v-for="node in path"
                     :key="node.id"
-                    :title="node.name"
                     :description="`难度：${difficultyText(node.difficulty)}`"
-                  />
+                  >
+                    <template #title>
+                      <span class="path-kp-link" @click="openKnowledgePointCourses(node)">
+                        {{ node.name }}
+                      </span>
+                    </template>
+                  </el-step>
                 </el-steps>
               </div>
             </div>
@@ -114,6 +119,27 @@
         刷新推荐
       </el-button>
     </el-empty>
+
+    <el-dialog
+      v-model="courseSelectorVisible"
+      title="请选择课程"
+      width="520px"
+      destroy-on-close
+    >
+      <el-empty v-if="!relatedCourses.length" description="该知识点暂无关联课程" />
+      <div v-else class="course-option-list">
+        <el-button
+          v-for="course in relatedCourses"
+          :key="course.id"
+          text
+          class="course-option-btn"
+          @click="goToCourseDetail(course.id)"
+        >
+          <span class="course-option-title">{{ course.title || `课程 #${course.id}` }}</span>
+          <span class="course-option-difficulty">难度：{{ difficultyText(course.difficulty) }}</span>
+        </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -121,6 +147,7 @@
 import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { GetHybridRecommend } from "@/api/recommend";
+import { GetCourseByKp } from "@/api/course";
 import { logger } from "@/utils/logger";
 
 const router = useRouter();
@@ -174,11 +201,9 @@ onMounted(() => {
 const toPercent = (value) => Math.round(Number(value || 0) * 100);
 
 const difficultyMap = {
-  1: "入门",
-  2: "初级",
-  3: "中级",
-  4: "高级",
-  5: "专家",
+  1: "初级",
+  2: "中级",
+  3: "高级"
 };
 
 const difficultyText = (level) => difficultyMap[level] || "未知";
@@ -198,6 +223,50 @@ const openCourse = (item) => {
   router.push({
     name: "CourseDetail",
     params: { id: item.courseId },
+  });
+};
+
+const relatedCourses = ref([]);
+const courseSelectorVisible = ref(false);
+const loadingCoursesByKp = ref(false);
+
+const normalizeCourseListFromResponse = (res) => {
+  const payload = res?.data?.data ?? res?.data;
+  if (!Array.isArray(payload)) return [];
+  return payload
+    .map((item) => ({
+      id: Number(item?.id),
+      title: item?.title ?? "",
+      difficulty: Number(item?.difficulty ?? 0),
+    }))
+    .filter((item) => Number.isFinite(item.id) && item.id > 0);
+};
+
+const openKnowledgePointCourses = async (node) => {
+  const kpId = Number(node?.id);
+  if (!Number.isFinite(kpId)) {
+    logger.warn("该知识点缺少 id，无法查询关联课程");
+    return;
+  }
+  if (loadingCoursesByKp.value) return;
+
+  loadingCoursesByKp.value = true;
+  try {
+    const res = await GetCourseByKp(kpId);
+    relatedCourses.value = normalizeCourseListFromResponse(res);
+    courseSelectorVisible.value = true;
+  } catch (e) {
+    logger.error("获取知识点关联课程失败", e);
+  } finally {
+    loadingCoursesByKp.value = false;
+  }
+};
+
+const goToCourseDetail = (courseId) => {
+  courseSelectorVisible.value = false;
+  router.push({
+    name: "CourseDetail",
+    params: { id: courseId },
   });
 };
 </script>
@@ -331,6 +400,55 @@ const openCourse = (item) => {
   font-size: 13px;
   color: #5c6f8a;
   margin-bottom: 6px;
+}
+
+.path-kp-link {
+  color: #1f6feb;
+  cursor: pointer;
+}
+
+.path-kp-link:hover {
+  color: #0f4fbf;
+}
+
+.course-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-option-btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 0;
+  height: auto;
+}
+
+.course-option-btn :deep(.el-button__text) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.course-option-list :deep(.el-button + .el-button) {
+  margin-left: 0;
+  margin-top: 0;
+}
+
+.course-option-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-option-difficulty {
+  font-size: small;
+  margin-left: 10px;
+  white-space: nowrap;
 }
 
 @media (max-width: 960px) {

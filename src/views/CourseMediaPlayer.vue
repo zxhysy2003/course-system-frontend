@@ -289,7 +289,7 @@ const getDifficultyStyle = (difficulty) => {
   return difficultyStyleMap[difficulty] || difficultyStyleMap[1];
 };
 
-// TODO: 页面加载时可以发送一些初始化请求，比如获取用户与课程的关系等(收藏相关，进度条断点记录和恢复等)
+// 页面加载时可以发送一些初始化请求，比如获取用户与课程的关系等(收藏相关，进度条断点记录和恢复等)
 onMounted( async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange);
   try {
@@ -343,7 +343,7 @@ onBeforeUnmount(async () => {
     video.pause();
   }
   // 发送观看时长记录
-  if (hasRecordedView.value && totalWatchTime.value > 0) {
+  if (hasEnrolled.value && hasRecordedView.value && totalWatchTime.value > 0) {
     try {
       // 发送观看时长记录（不一定是完成）
       await RecordLearningBehavior({
@@ -357,7 +357,7 @@ onBeforeUnmount(async () => {
     }
   }
   // 发送断点续播时间
-  if (video) {
+  if (video && hasEnrolled.value) {
     const currentTime = Math.floor(video.currentTime);
     try {
       await UpdateCourseVideoProgressSeconds({

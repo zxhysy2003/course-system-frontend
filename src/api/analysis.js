@@ -11,3 +11,7 @@ export function GetLearningProgress(days) {
     params: { days },
   });
 }
+
+export function GetAbilityRadar() {
+  return request.get("/analysis/ability-radar");
+}
