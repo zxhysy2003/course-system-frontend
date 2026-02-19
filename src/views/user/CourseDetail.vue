@@ -14,9 +14,9 @@
 <script setup>
   import CourseMediaPlayer from './CourseMediaPlayer.vue';
   import { useRoute } from 'vue-router';
-  import { GetCourseVideo } from '../api/course';
+  import { GetCourseVideo } from '../../api/course';
   import { onMounted, reactive, ref } from 'vue';
-  import { logger } from '../utils/logger';
+  import { logger } from '../../utils/logger';
   import { Loading } from '@element-plus/icons-vue';
 
   const route = useRoute();

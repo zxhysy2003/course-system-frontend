@@ -13,27 +13,46 @@
                     </el-icon>
                 </button>
                 <el-menu router class="side-menu" :collapse="isCollapsed">
-                <el-menu-item index="/course">
-                    <el-icon><Document /></el-icon>
-                    <span>课程学习</span>
-                </el-menu-item>
-                <el-menu-item index="/recommend">
-                    <el-icon><Star /></el-icon>
-                    <span>推荐</span>
-                </el-menu-item>
-                <el-menu-item index="/dashboard">
-                    <el-icon><DataAnalysis /></el-icon>
-                    <span>学习进度</span>
-                </el-menu-item>
-                <el-menu-item index="/graph">
-                    <!-- <el-icon><NetworkCheck /></el-icon> -->
-                    <el-icon><MagicStick /></el-icon>
-                    <span>知识图谱</span>
-                </el-menu-item>
-                <el-menu-item index="/profile">
-                    <el-icon><User /></el-icon>
-                    <span>个人中心</span>
-                </el-menu-item>
+                <template v-if="isAdmin">
+                    <el-menu-item index="/admin/course">
+                        <el-icon><Document /></el-icon>
+                        <span>课程管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="/admin/users">
+                        <el-icon><User /></el-icon>
+                        <span>用户管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="/course">
+                        <el-icon><Document /></el-icon>
+                        <span>课程学习</span>
+                    </el-menu-item>
+                    <el-menu-item index="/graph">
+                        <el-icon><MagicStick /></el-icon>
+                        <span>知识图谱</span>
+                    </el-menu-item>
+                </template>
+                <template v-else>
+                    <el-menu-item index="/course">
+                        <el-icon><Document /></el-icon>
+                        <span>课程学习</span>
+                    </el-menu-item>
+                    <el-menu-item index="/recommend">
+                        <el-icon><Star /></el-icon>
+                        <span>推荐</span>
+                    </el-menu-item>
+                    <el-menu-item index="/dashboard">
+                        <el-icon><DataAnalysis /></el-icon>
+                        <span>学习进度</span>
+                    </el-menu-item>
+                    <el-menu-item index="/graph">
+                        <el-icon><MagicStick /></el-icon>
+                        <span>知识图谱</span>
+                    </el-menu-item>
+                    <el-menu-item index="/profile">
+                        <el-icon><User /></el-icon>
+                        <span>个人中心</span>
+                    </el-menu-item>
+                </template>
             </el-menu>
             </div>
         </el-aside>
@@ -67,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, computed } from "vue"
 import { useUserStore } from "../store/user"
 import { useRouter } from "vue-router"
 import { Document, Star, DataAnalysis, MagicStick, User, UserFilled, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
@@ -78,6 +97,7 @@ const router = useRouter();
 
 // 菜单收缩状态
 const isCollapsed = ref(false);
+const isAdmin = computed(() => userStore.userInfo?.role === "ADMIN");
 
 const handleCommand = (command) => {
     if (command === 'logout') {

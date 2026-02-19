@@ -114,8 +114,8 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Search, User } from "@element-plus/icons-vue";
-import { logger } from "../utils/logger";
-import { GetCategories, GetCourses, UserAttendCourse } from "../api/course";
+import { logger } from "../../utils/logger";
+import { GetCategories, GetCourses, UserAttendCourse } from "../../api/course";
 
 const router = useRouter();
 

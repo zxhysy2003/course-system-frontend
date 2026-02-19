@@ -68,18 +68,18 @@
 <script setup>
 import { onBeforeUnmount, watch, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router';
-import { useUserStore } from "../store/user";
-import { setAuthTokenToCookie, clearAuthTokenCookie } from "../utils/authCookie";
-import { logger } from '../utils/logger';
+import { useUserStore } from "../../store/user";
+import { setAuthTokenToCookie, clearAuthTokenCookie } from "../../utils/authCookie";
+import { logger } from '../../utils/logger';
 import { Star } from '@element-plus/icons-vue';
-import { RecordLearningBehavior } from '../api/learningBehavior';
+import { RecordLearningBehavior } from '../../api/learningBehavior';
 import {
   GetUserCourseRelation,
   UpdateCourseVideoProgressSeconds,
   GetCourseById,
   UserAttendCourse,
   GetKnowledgePointsByCourse
-} from '../api/course';
+} from '../../api/course';
 
 const store = useUserStore();
 const router = useRouter();
