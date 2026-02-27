@@ -23,7 +23,6 @@
         <el-option label="按人数" :value="0" />
         <el-option label="按最新" :value="1" />
         <el-option label="按热度" :value="2" />
-        <el-option label="按进度" :value="3" />
       </el-select>
 
       <el-button type="primary" @click="searchCourses" :loading="loading" class="toolbar-item">
@@ -32,12 +31,25 @@
       <el-button type="success" @click="goToCourseRegister" class="toolbar-item">
         注册课程
       </el-button>
+      <el-button
+        type="danger"
+        plain
+        :disabled="!selectedCount"
+        @click="deleteSelected"
+        class="toolbar-item"
+      >
+        删除课程<span v-if="selectedCount">（已选{{ selectedCount }}）</span>
+      </el-button>
     </div>
 
     <!-- 课程列表 -->
     <el-row v-if="courses.length" :gutter="12">
       <el-col v-for="course in courses" :key="course.id" :xs="24" :sm="12" :md="8">
-        <el-card shadow="hover" class="course-card">
+        <el-card
+          shadow="hover"
+          :class="['course-card', statusClass(course.status), { selected: isSelected(course.id) }]"
+          @click="toggleSelect(course.id)"
+        >
           <el-image :src="course.cover" :alt="course.title" fit="cover" class="cover" />
 
           <div class="card-body">
@@ -45,13 +57,16 @@
               <span class="title">
                 {{ course.title }}
               </span>
+              <el-tag size="small" :type="statusTagType(course.status)">
+                {{ statusText(course.status) }}
+              </el-tag>
             </div>
 
             <div class="meta">
-              <span class="difficulty" :style="{ color: difficultyMap[course.difficulty]?.color }">
-                {{ difficultyMap[course.difficulty]?.label || "未知" }}
+              <span class="difficulty" :style="{ color: difficultyMap[getDifficultyLevel(course.difficulty)]?.color }">
+                {{ difficultyMap[getDifficultyLevel(course.difficulty)]?.label || "未知" }}
               </span>
-              <el-rate v-model="course.difficulty" :max="5" disabled allow-half class="difficulty-rate" />
+              <el-rate :model-value="getDifficultyLevel(course.difficulty)" :max="3" disabled class="difficulty-rate" />
               <span class="separator">|</span>
               <span class="category">{{ course.category }}</span>
             </div>
@@ -76,8 +91,15 @@
             <el-progress v-if="course.enrolled" :percentage="course.progress" :stroke-width="10" />
 
             <div class="actions">
-              <el-button type="primary" @click="editCourse(course)">
+              <el-button type="primary" @click.stop="editCourse(course)">
                 修改课程
+              </el-button>
+              <el-button
+                :type="isOnline(course.status) ? 'warning' : 'success'"
+                plain
+                @click.stop="toggleStatus(course)"
+              >
+                {{ isOnline(course.status) ? "下线" : "上线" }}
               </el-button>
             </div>
           </div>
@@ -107,11 +129,12 @@
 
 <script setup>
 
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { Search, User } from "@element-plus/icons-vue";
+import { ElMessageBox } from "element-plus";
 import { logger } from "../../utils/logger";
-import { GetCategories, GetCourses } from "../../api/course";
+import { GetCategories, GetCourses, DeleteCourses, UpdateCourseStatus } from "../../api/course";
 
 const router = useRouter();
 
@@ -125,6 +148,9 @@ const pageSize = ref(9);
 const total = ref(0);
 
 const courses = ref([]);
+const selectedIds = ref([]);
+
+const selectedCount = computed(() => selectedIds.value.length);
 
 // 搜索加载状态
 const loading = ref(false);
@@ -137,11 +163,16 @@ const categories = ref([{
 
 // 难度等级映射
 const difficultyMap = {
-  1: { label: "入门", color: "#67c23a" },
-  2: { label: "初级", color: "#409eff" },
-  3: { label: "中级", color: "#e6a23c" },
-  4: { label: "高级", color: "#f56c6c" },
-  5: { label: "专家", color: "#ad3c3c" },
+  1: { label: "初级", color: "#67c23a" },
+  2: { label: "中级", color: "#e6a23c" },
+  3: { label: "高级", color: "#f56c6c" },
+};
+
+const getDifficultyLevel = (value) => {
+  const level = Number(value);
+  if (!Number.isFinite(level) || level <= 1) return 1;
+  if (level >= 3) return 3;
+  return 2;
 };
 
 // 组件挂载时获取分类列表和初始课程列表
@@ -197,10 +228,93 @@ const editCourse = (course) => {
   });
 };
 
+const toggleSelect = (courseId) => {
+  const current = new Set(selectedIds.value);
+  if (current.has(courseId)) {
+    current.delete(courseId);
+  } else {
+    current.add(courseId);
+  }
+  selectedIds.value = Array.from(current);
+};
+
+const isSelected = (courseId) => selectedIds.value.includes(courseId);
+
+const deleteSelected = async () => {
+  if (!selectedIds.value.length) return;
+  try {
+    await ElMessageBox.confirm(
+      `确认删除已选中的 ${selectedIds.value.length} 门课程吗？删除后无法恢复。`,
+      "再次确认删除",
+      {
+        confirmButtonText: "确认删除",
+        cancelButtonText: "取消",
+        type: "warning",
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false,
+      }
+    );
+  } catch {
+    return;
+  }
+
+  try {
+    const res = await DeleteCourses(selectedIds.value);
+    if (res.data.code !== 200) {
+      logger.error(res.data.msg || "删除课程失败", res.data);
+      return;
+    }
+    const selectedSet = new Set(selectedIds.value);
+    courses.value = courses.value.filter(course => !selectedSet.has(course.id));
+    selectedIds.value = [];
+    logger.success("删除课程成功");
+  } catch (e) {
+    logger.error("删除课程失败", e);
+  }
+};
+
 const goToCourseRegister = () => {
   router.push({
     name: "CourseRegister"
   });
+};
+
+const statusText = (status) => {
+  const value = Number(status);
+  if (value === 1) return "已上线";
+  if (value === 2) return "已下线";
+  return "草稿";
+};
+
+const statusTagType = (status) => {
+  const value = Number(status);
+  if (value === 1) return "success";
+  if (value === 2) return "warning";
+  return "info";
+};
+
+const statusClass = (status) => {
+  const value = Number(status);
+  if (value === 1) return "status-online";
+  if (value === 2) return "status-offline";
+  return "status-draft";
+};
+
+const isOnline = (status) => Number(status) === 1;
+
+const toggleStatus = async (course) => {
+  const targetStatus = isOnline(course.status) ? 2 : 1;
+  try {
+    const res = await UpdateCourseStatus(course.id, targetStatus);
+    if (res?.data?.code !== 200) {
+      logger.error(res?.data?.msg || "更新课程状态失败", res?.data);
+      return;
+    }
+    course.status = targetStatus;
+    logger.success(targetStatus === 1 ? "课程已上线" : "课程已下线");
+  } catch (e) {
+    logger.error("更新课程状态失败", e);
+  }
 };
 
 // 筛选项变化自动搜索（showEnrolledOnly不触发搜索，只做前端过滤）
@@ -232,6 +346,12 @@ watch(
   gap: 8px;
   align-items: center;
   margin: 12px 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  padding: 8px 0;
+  box-shadow: 0 8px 16px -12px rgba(0, 0, 0, 0.15);
 }
 
 .toolbar .input {
@@ -244,6 +364,26 @@ watch(
 
 .course-card {
   margin-bottom: 12px;
+}
+
+.course-card.selected {
+  border-color: #409eff;
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.16);
+}
+
+.course-card.status-draft {
+  border-left: 4px solid #909399;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+.course-card.status-online {
+  border-left: 4px solid #67c23a;
+  background: linear-gradient(180deg, #ffffff 0%, #f6fff6 100%);
+}
+
+.course-card.status-offline {
+  border-left: 4px solid #e6a23c;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf2 100%);
 }
 
 .cover {

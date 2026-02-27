@@ -49,10 +49,10 @@
             </div>
 
             <div class="meta">
-              <span class="difficulty" :style="{ color: difficultyMap[course.difficulty]?.color }">
-                {{ difficultyMap[course.difficulty]?.label || "未知" }}
+              <span class="difficulty" :style="{ color: difficultyMap[getDifficultyLevel(course.difficulty)]?.color }">
+                {{ difficultyMap[getDifficultyLevel(course.difficulty)]?.label || "未知" }}
               </span>
-              <el-rate v-model="course.difficulty" :max="5" disabled allow-half class="difficulty-rate" />
+              <el-rate :model-value="getDifficultyLevel(course.difficulty)" :max="3" disabled class="difficulty-rate" />
               <span class="separator">|</span>
               <span class="category">{{ course.category }}</span>
             </div>
@@ -152,11 +152,16 @@ const categories = ref([{
 
 // 难度等级映射
 const difficultyMap = {
-  1: { label: "入门", color: "#67c23a" },
-  2: { label: "初级", color: "#409eff" },
-  3: { label: "中级", color: "#e6a23c" },
-  4: { label: "高级", color: "#f56c6c" },
-  5: { label: "专家", color: "#ad3c3c" },
+  1: { label: "初级", color: "#67c23a" },
+  2: { label: "中级", color: "#e6a23c" },
+  3: { label: "高级", color: "#f56c6c" },
+};
+
+const getDifficultyLevel = (value) => {
+  const level = Number(value);
+  if (!Number.isFinite(level) || level <= 1) return 1;
+  if (level >= 3) return 3;
+  return 2;
 };
 
 // 组件挂载时获取分类列表和初始课程列表
@@ -192,6 +197,7 @@ const searchCourses = async () => {
       keyword: searchQuery.value,
       categoryId: selectedCategory.value,
       sortBy: sortBy.value,
+      status: 1 // 仅搜索已发布的课程
     });
 
     logger.debug("搜索课程结果", res);
