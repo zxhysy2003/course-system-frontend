@@ -16,6 +16,7 @@ import NotFound from "@/views/404.vue";
 import CourseDetail from "@/views/user/CourseDetail.vue";
 import CourseManage from "@/views/admin/CourseManage.vue";
 import UserManage from "@/views/admin/UserManage.vue";
+import UserEdit from "@/views/admin/UserEdit.vue";
 import CourseEdit from "@/views/admin/CourseEdit.vue";
 import CourseRegister from "@/views/admin/CourseRegister.vue";
 
@@ -51,7 +52,8 @@ const routes = [
             { path: "admin/course", component: CourseManage },
             { path: "admin/course/edit/:id", name: "CourseEdit", component: CourseEdit },
             { path: "admin/course/register", name: "CourseRegister", component: CourseRegister },
-            { path: "admin/users", component: UserManage }
+            { path: "admin/users", component: UserManage },
+            { path: "admin/users/edit/:id", name: "UserEdit", component: UserEdit }
         ]
     },
 ];
