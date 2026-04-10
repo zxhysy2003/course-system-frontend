@@ -15,7 +15,7 @@
   import CourseMediaPlayer from './CourseMediaPlayer.vue';
   import { useRoute } from 'vue-router';
   import { GetCourseVideo } from '../../api/course';
-  import { onMounted, reactive, ref } from 'vue';
+  import { onMounted, ref } from 'vue';
   import { logger } from '../../utils/logger';
   import { Loading } from '@element-plus/icons-vue';
 
@@ -36,7 +36,7 @@
     try {
       const response = await GetCourseVideo(courseId);
       if(response.data.code === 200) {
-        courseVideoUrl.value = String(response.data.data);
+        courseVideoUrl.value = String(response.data.data || '');
       } else {
         logger.error(`获取课程视频失败: ${response.data.msg}`, response.data);
       }

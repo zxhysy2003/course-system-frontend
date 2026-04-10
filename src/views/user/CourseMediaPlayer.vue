@@ -4,10 +4,10 @@
       <!-- 视频区域 -->
       <div class="video-box">
         <video
-          v-if="props.videoUrl"
+          v-if="playerVideoUrl"
           ref="videoRef"
           class="video"
-          :src="props.videoUrl"
+          :src="playerVideoUrl"
           controls
           @error="handleVideoError"
           @loadedmetadata="handleLoadedMetadata"
@@ -84,6 +84,7 @@ import {
 const store = useUserStore();
 const router = useRouter();
 const videoRef = ref(null);
+const playerVideoUrl = ref('');
 
 const courseInfo = reactive({});
 
@@ -139,6 +140,11 @@ watch(() => props.videoUrl, (newUrl) => {
       // console.warn('未找到用户 token');
       clearAuthTokenCookie();
     }
+
+    // 在写入鉴权 Cookie 后再设置视频地址，避免首个视频请求抢在 Cookie 生效前发出。
+    playerVideoUrl.value = newUrl;
+  } else {
+    playerVideoUrl.value = '';
   }
   // 暂停当前视频播放
   const video = videoRef.value;
